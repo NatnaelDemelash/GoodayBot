@@ -3,7 +3,6 @@ const { Telegraf, Scenes, session, Markup } = require("telegraf");
 const { BaseScene, Stage } = Scenes;
 const axios = require("axios");
 
-// Replace with your actual bot token
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
 // Jira credentials and endpoint
@@ -75,7 +74,7 @@ const services = [
   },
 ];
 
-// Create scenes for each step
+// scenes for each step
 const nameScene = new BaseScene("name");
 const locationScene = new BaseScene("location");
 const serviceScene = new BaseScene("service");
@@ -96,7 +95,6 @@ locationScene.on("text", (ctx) => {
   ctx.scene.enter("service");
 });
 
-// Service scene
 // Service scene
 serviceScene.enter((ctx) => {
   const serviceOptions = services.map((category) => category.category);
