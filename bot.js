@@ -81,6 +81,15 @@ const serviceScene = new BaseScene("service");
 const descriptionScene = new BaseScene("description");
 const phoneScene = new BaseScene("phone");
 
+// Function to split array into chunks
+const chunkArray = (array, chunkSize) => {
+  const chunks = [];
+  for (let i = 0; i < array.length; i += chunkSize) {
+    chunks.push(array.slice(i, i + chunkSize));
+  }
+  return chunks;
+};
+
 // Name scene
 nameScene.enter((ctx) => ctx.reply("Please Enter Your Full Name:"));
 nameScene.on("text", (ctx) => {
@@ -98,11 +107,13 @@ locationScene.on("text", (ctx) => {
 // Service scene
 serviceScene.enter((ctx) => {
   const serviceOptions = services.map((category) => category.category);
+  const serviceButtons = chunkArray(serviceOptions, 2).map((chunk) =>
+    chunk.map((option) => Markup.button.callback(option, option))
+  );
+
   ctx.reply(
     "Please select the requested service category:",
-    Markup.inlineKeyboard(
-      serviceOptions.map((option) => Markup.button.callback(option, option))
-    )
+    Markup.inlineKeyboard(serviceButtons)
   );
 });
 
@@ -118,11 +129,13 @@ serviceScene.action(
     ctx.session.serviceCategory = selectedCategory;
     ctx.session.serviceOptions = options;
 
+    const serviceOptionButtons = chunkArray(options, 2).map((chunk) =>
+      chunk.map((option) => Markup.button.callback(option, option))
+    );
+
     ctx.reply(
       `Please select the specific service from ${selectedCategory}:`,
-      Markup.inlineKeyboard(
-        options.map((option) => Markup.button.callback(option, option))
-      )
+      Markup.inlineKeyboard(serviceOptionButtons)
     );
   }
 );
@@ -185,7 +198,7 @@ phoneScene.on("text", async (ctx) => {
 
   // Leave the current scene and go back to the start
   ctx.scene.leave();
-  // ctx.scene.enter("name");
+  ctx.scene.enter("name");
 });
 
 // Create a stage with the scenes
