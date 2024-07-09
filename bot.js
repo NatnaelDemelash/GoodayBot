@@ -11,7 +11,7 @@ const JIRA_API_TOKEN = process.env.JIRA_API_TOKEN;
 const JIRA_PROJECT_KEY = process.env.JIRA_PROJECT_KEY;
 const JIRA_EMAIL = process.env.JIRA_EMAIL;
 
-//Function to create a Jira ticket
+// Function to create a Jira ticket
 const createJiraTicket = async (summary, description) => {
   const auth = Buffer.from(`${JIRA_EMAIL}:${JIRA_API_TOKEN}`).toString(
     "base64"
@@ -74,7 +74,7 @@ const services = [
   },
 ];
 
-// scenes for each step
+// Scenes for each step
 const nameScene = new BaseScene("name");
 const locationScene = new BaseScene("location");
 const serviceScene = new BaseScene("service");
@@ -82,14 +82,14 @@ const descriptionScene = new BaseScene("description");
 const phoneScene = new BaseScene("phone");
 
 // Name scene
-nameScene.enter((ctx) => ctx.reply("Please enter your full name:"));
+nameScene.enter((ctx) => ctx.reply("Please Enter Your Full Name:"));
 nameScene.on("text", (ctx) => {
   ctx.session.name = ctx.message.text;
   ctx.scene.enter("location");
 });
 
 // Location scene
-locationScene.enter((ctx) => ctx.reply("Please enter your location:"));
+locationScene.enter((ctx) => ctx.reply("Please Enter Your Location:"));
 locationScene.on("text", (ctx) => {
   ctx.session.location = ctx.message.text;
   ctx.scene.enter("service");
@@ -147,7 +147,7 @@ descriptionScene.on("text", (ctx) => {
 });
 
 // Phone scene
-phoneScene.enter((ctx) => ctx.reply("Please enter your phone number:"));
+phoneScene.enter((ctx) => ctx.reply("Please Enter Your Phone Number:"));
 phoneScene.on("text", async (ctx) => {
   ctx.session.phone = ctx.message.text;
 
@@ -166,19 +166,26 @@ phoneScene.on("text", async (ctx) => {
     const description = requestDetails;
 
     const jiraResponse = await createJiraTicket(summary, description);
-    ctx.reply(
-      `Thank you! Your request has been received.\n${requestDetails}\n\nour customer service specialist will start processing within 10mins.\n\nYour service request number is: ${jiraResponse.key}\n\n We may contact you if we require additional information to process your service request.\n\nThank you for choosing GoodayOn!`
+    await ctx.reply(
+      `Thank you! Your request has been received.\n${requestDetails}\n\nOur customer service specialist will start processing within 10 mins.\n\nYour service request number is: ${jiraResponse.key}\n\n We may contact you if we require additional information to process your service request.\n\nThank you for choosing GoodayOn!`
     );
   } catch (error) {
-    ctx.reply(
-      "There was an error creating the Jira ticket. Please try again later."
+    await ctx.reply(
+      "There was an error on accepting your request. Please try again later."
     );
     console.error(error);
   }
 
-  // Clear session and go back to the start
-  ctx.session = null;
+  // Clear session data but don't set it to null
+  ctx.session.name = null;
+  ctx.session.location = null;
+  ctx.session.selectedService = null;
+  ctx.session.description = null;
+  ctx.session.phone = null;
+
+  // Leave the current scene and go back to the start
   ctx.scene.leave();
+  // ctx.scene.enter("name");
 });
 
 // Create a stage with the scenes
@@ -195,12 +202,32 @@ bot.use(session());
 bot.use(stage.middleware());
 
 // Start command to initiate the scene
-bot.start((ctx) => ctx.scene.enter("name"));
+bot.start((ctx) => {
+  ctx.reply(
+    `🖐️ Welcome to GoodayOn telegram bot! \n\n💁 GoodayOn is a gig platform that connects skilled professionals with individuals and businesses in need of their services
+    `
+  );
+  ctx.reply(`
+     Here's how you can interact with me:\n
+      - Use /request to request for a service provider.
+      - Use /help if you need assistance.`);
+});
+
+// Command to initiate the request scene
+bot.command("request", (ctx) => ctx.scene.enter("name"));
+
+// Help command
+bot.help((ctx) => ctx.reply("This is the help message."));
 
 // Launch the bot
-bot.launch();
-
-console.log("Bot is running...");
+bot
+  .launch()
+  .then(() => {
+    console.log("Bot is running...");
+  })
+  .catch((err) => {
+    console.error("Bot startup error:", err);
+  });
 
 // Enable graceful stop
 process.once("SIGINT", () => bot.stop("SIGINT"));
