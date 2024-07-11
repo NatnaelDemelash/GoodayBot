@@ -1,7 +1,8 @@
 require("dotenv").config();
 const { Telegraf, Scenes, session, Markup } = require("telegraf");
 const { BaseScene, Stage } = Scenes;
-const axios = require("axios");
+const JiraClient = require("jira-client");
+// const axios = require("axios");
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
@@ -11,14 +12,20 @@ const JIRA_API_TOKEN = process.env.JIRA_API_TOKEN;
 const JIRA_PROJECT_KEY = process.env.JIRA_PROJECT_KEY;
 const JIRA_EMAIL = process.env.JIRA_EMAIL;
 
+// Initialize Jira client
+const jira = new JiraClient({
+  protocol: "https",
+  host: JIRA_BASE_URL.replace("https://", ""),
+  username: JIRA_EMAIL,
+  password: JIRA_API_TOKEN,
+  apiVersion: "2",
+  strictSSL: true,
+});
+
 // Function to create a Jira ticket
-const createJiraTicket = async (summary, description) => {
-  const auth = Buffer.from(`${JIRA_EMAIL}:${JIRA_API_TOKEN}`).toString(
-    "base64"
-  );
-  const response = await axios.post(
-    `${JIRA_BASE_URL}/rest/api/2/issue`,
-    {
+const createJiraTicket = async (summary, description, additionalFields) => {
+  try {
+    const issue = await jira.addNewIssue({
       fields: {
         project: {
           key: JIRA_PROJECT_KEY,
@@ -28,16 +35,14 @@ const createJiraTicket = async (summary, description) => {
         issuetype: {
           name: "Task",
         },
+        ...additionalFields, // Add additional fields to the Jira issue
       },
-    },
-    {
-      headers: {
-        Authorization: `Basic ${auth}`,
-        "Content-Type": "application/json",
-      },
-    }
-  );
-  return response.data;
+    });
+    return issue;
+  } catch (error) {
+    console.error("Error creating Jira ticket:", error);
+    throw error;
+  }
 };
 
 // Define service categories
@@ -177,8 +182,19 @@ phoneScene.on("text", async (ctx) => {
   try {
     const summary = `TR - ${ctx.session.selectedService}`;
     const description = requestDetails;
+    const additionalFields = {
+      // Add any additional fields here, for example:
+      // customfield_10010: ctx.session.phone, // Example custom field
+      customfield_10031: ctx.session.name,
+      // assignee: { name: 'assignee_username' },
+      // reporter: { name: ctx.session.name },
+    };
 
-    const jiraResponse = await createJiraTicket(summary, description);
+    const jiraResponse = await createJiraTicket(
+      summary,
+      description,
+      additionalFields
+    );
     await ctx.reply(
       `Thank you! Your request has been received.\n${requestDetails}\n\nOur customer service specialist will start processing within 10 mins.\n\nYour service request number is: ${jiraResponse.key}\n\n We may contact you if we require additional information to process your service request.\n\nThank you for choosing GoodayOn!`
     );
@@ -198,7 +214,7 @@ phoneScene.on("text", async (ctx) => {
 
   // Leave the current scene and go back to the start
   ctx.scene.leave();
-  ctx.scene.enter("name");
+  // ctx.scene.enter("name");
 });
 
 // Create a stage with the scenes
