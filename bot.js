@@ -49,11 +49,11 @@ const createJiraTicket = async (summary, description, additionalFields) => {
 // Define service categories
 const services = [
   {
-    category: "Domestic Help",
+    category: "🧹 Domestic Help",
     options: ["Cooking Maid", "Cleaning Maid", "Catering", "Tutor"],
   },
   {
-    category: "Maintenance",
+    category: "👨🏻‍🔧 Maintenance",
     options: [
       "Satellite Dish",
       "Electrician",
@@ -63,7 +63,7 @@ const services = [
     ],
   },
   {
-    category: "Home Renovation",
+    category: "👷‍♂️ Home Renovation",
     options: [
       "Construction",
       "House Painting",
@@ -75,7 +75,7 @@ const services = [
     ],
   },
   {
-    category: "Business",
+    category: "📈 Business",
     options: ["Accountant", "Salesman", "Receptionist", "Secretary", "Cashier"],
   },
 ];
@@ -97,14 +97,14 @@ const chunkArray = (array, chunkSize) => {
 };
 
 // Name scene
-nameScene.enter((ctx) => ctx.reply("Please Enter Your Full Name:"));
+nameScene.enter((ctx) => ctx.reply("እባክዎ ሙሉ ስምዎትን ያስገቡ:"));
 nameScene.on("text", (ctx) => {
   ctx.session.name = ctx.message.text;
   ctx.scene.enter("location");
 });
 
 // Location scene
-locationScene.enter((ctx) => ctx.reply("Please Enter Your Location:"));
+locationScene.enter((ctx) => ctx.reply("ባለሙያ እንዲላክ የሚፈልጉበትን አድራሻ ያስገቡ:"));
 locationScene.on("text", (ctx) => {
   ctx.session.location = ctx.message.text;
   ctx.scene.enter("service");
@@ -118,7 +118,7 @@ serviceScene.enter((ctx) => {
   );
 
   ctx.reply(
-    "Please select the requested service category:",
+    "እባክዎ በቅድሚያ የአገልግሎት ዘርፍ ይምረጡ:",
     Markup.inlineKeyboard(serviceButtons)
   );
 });
@@ -140,7 +140,7 @@ serviceScene.action(
     );
 
     ctx.reply(
-      `Please select the specific service from ${selectedCategory}:`,
+      `ከመረጡት የአገልግሎት ዘርፍ ውስጥ የሚፈልጉትን የባለሙያ አይነት ይምረጡ ${selectedCategory}:`,
       Markup.inlineKeyboard(serviceOptionButtons)
     );
   }
@@ -151,14 +151,14 @@ serviceScene.action(
   services.flatMap((category) => category.options),
   (ctx) => {
     ctx.session.selectedService = ctx.match[0];
-    ctx.reply(`You selected: ${ctx.session.selectedService}`);
+    ctx.reply(`የጠየቁት ባለሙያ: ${ctx.session.selectedService}`);
     ctx.scene.enter("description");
   }
 );
 
 // Description scene
 descriptionScene.enter((ctx) =>
-  ctx.reply("Please provide a description for the requested service:")
+  ctx.reply("የተሟላ አገልግሎት እንድንሰጥዎ ስለሚጠይቁት አገልግሎት የተወሰነ ማብራሪያ ያስገቡ")
 );
 descriptionScene.on("text", (ctx) => {
   ctx.session.description = ctx.message.text;
@@ -166,18 +166,18 @@ descriptionScene.on("text", (ctx) => {
 });
 
 // Phone scene
-phoneScene.enter((ctx) => ctx.reply("Please Enter Your Phone Number:"));
+phoneScene.enter((ctx) => ctx.reply("የሞባይል ቁጥርዎትን ያስገቡ:"));
 phoneScene.on("text", async (ctx) => {
   ctx.session.phone = ctx.message.text;
 
   const requestTime = formatISO(new Date());
   // Collect all the information
   const requestDetails = `
-    Full Name: ${ctx.session.name}
-    Location: ${ctx.session.location}
-    Requested Service: ${ctx.session.selectedService}
-    Description: ${ctx.session.description}
-    Phone Number: ${ctx.session.phone}
+    ሙሉ ስም: ${ctx.session.name}
+    አድራሻ: ${ctx.session.location}
+    የተጠየቁት አገልግሎት: ${ctx.session.selectedService}
+    ለጠየቁት አገልግሎት ያስገቡት ማብራሪያ: ${ctx.session.description}
+    ስልክ ቁጥር: ${ctx.session.phone}
   `;
 
   // Create a Jira ticket
@@ -198,12 +198,10 @@ phoneScene.on("text", async (ctx) => {
       additionalFields
     );
     await ctx.reply(
-      `Thank you! Your request has been received.\n${requestDetails}\n\nOur customer service specialist will start processing within 10 mins.\n\nYour service request number is: ${jiraResponse.key}\n\n We may contact you if we require additional information to process your service request.\n\nThank you for choosing GoodayOn!`
+      `ተሳክቷል! ትዕዛዝዎን ተቀብለናል.\n${requestDetails}\n\n የደንበኛ ግልጋሎት ባለሙያዎቻችን በ 10 ደቂቃ ውስጥ ትዕዛዝዎን ማስተናገድ ይጀምራሉ.\n\nየአገልግሎት ትዕዛዝ ቁጥርዎ: ${jiraResponse.key}\n\n ባስገቡት የአገልግሎት ጥያቄ ላይ ተጨማሪ ማብራሪያ ካስፈለገን እንደውልሎታለን።\n\nጉዳይን ስለመረጡ እናመሰግናለን!`
     );
   } catch (error) {
-    await ctx.reply(
-      "There was an error on accepting your request. Please try again later."
-    );
+    await ctx.reply("ጥያቄዎን በአግባቡ መቀበል አልተቻለም። እባክዎን እንደገና ይሞክሩ!");
     console.error(error);
   }
 
@@ -235,20 +233,27 @@ bot.use(stage.middleware());
 // Start command to initiate the scene
 bot.start((ctx) => {
   ctx.reply(
-    `🖐️ Welcome to GoodayOn telegram bot! \n\n💁 GoodayOn is a gig platform that connects skilled professionals with individuals and businesses in need of their services
+    `🖐️ Welcome to GoodayOn telegram bot! \n\n💁 GoodayOn is a gig platform that connects skilled professionals with individuals and businesses in need of their services\n\nጉዳይኦን በቅርብ ርቀት ላይ የሚገኙ ስራ እና ሰራተኛን በቀላሉ የሚያገናኝ የሞባይል መተግበሪያ ነው፡፡
     `
   );
   ctx.reply(`
      Here's how you can interact with me:\n
-      - Use /request to request for a service provider.
-      - Use /help if you need assistance.`);
+      - Use /start to start the bot(የቴሌግራም ቦቱን ለማስጘመር)
+      - Use /request to request for a service provider(ባለሙያ/ሰራተኛ ለመጠየቅ)
+      - Use /help if you need assistance(እገዛ ለማግኘት)`);
 });
 
 // Command to initiate the request scene
 bot.command("request", (ctx) => ctx.scene.enter("name"));
 
 // Help command
-bot.help((ctx) => ctx.reply("This is the help message."));
+bot.help((ctx) =>
+  ctx.reply(`
+  Here's how you can interact with me:\n
+   - Use /start to start the bot(የቴሌግራም ቦቱን ለማስጘመር)
+   - Use /request to request for a service provider(ባለሙያ/ሰራተኛ ለመጠየቅ)
+   - Use /help if you need assistance(እገዛ ለማግኘት)`)
+);
 
 // Launch the bot
 bot
