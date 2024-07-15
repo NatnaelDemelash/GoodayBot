@@ -2,6 +2,7 @@ require("dotenv").config();
 const { Telegraf, Scenes, session, Markup } = require("telegraf");
 const { BaseScene, Stage } = Scenes;
 const JiraClient = require("jira-client");
+const { formatISO } = require("date-fns");
 // const axios = require("axios");
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
@@ -169,25 +170,26 @@ phoneScene.enter((ctx) => ctx.reply("Please Enter Your Phone Number:"));
 phoneScene.on("text", async (ctx) => {
   ctx.session.phone = ctx.message.text;
 
+  const requestTime = formatISO(new Date());
   // Collect all the information
   const requestDetails = `
-  Full Name: ${ctx.session.name}
-  Location: ${ctx.session.location}
-  Requested Service: ${ctx.session.selectedService}
-  Description: ${ctx.session.description}
-  Phone Number: ${ctx.session.phone}
+    Full Name: ${ctx.session.name}
+    Location: ${ctx.session.location}
+    Requested Service: ${ctx.session.selectedService}
+    Description: ${ctx.session.description}
+    Phone Number: ${ctx.session.phone}
   `;
 
   // Create a Jira ticket
   try {
-    const summary = `TR - ${ctx.session.selectedService}`;
-    const description = requestDetails;
+    const summary = `${ctx.session.selectedService}`;
+    const description = `${ctx.session.description}`;
     const additionalFields = {
-      // Add any additional fields here, for example:
-      // customfield_10010: ctx.session.phone, // Example custom field
-      customfield_10031: ctx.session.name,
-      // assignee: { name: 'assignee_username' },
-      // reporter: { name: ctx.session.name },
+      customfield_10035: ctx.session.name,
+      customfield_10036: ctx.session.phone,
+      customfield_10038: ctx.session.location,
+      customfield_10034: ctx.session.selectedService,
+      customfield_10045: requestTime,
     };
 
     const jiraResponse = await createJiraTicket(
