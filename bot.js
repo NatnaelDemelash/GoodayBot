@@ -2,7 +2,6 @@ require("dotenv").config();
 const { Telegraf, Scenes, session, Markup } = require("telegraf");
 const { BaseScene, Stage } = Scenes;
 const JiraClient = require("jira-client");
-// const axios = require("axios");
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
@@ -48,34 +47,45 @@ const createJiraTicket = async (summary, description, additionalFields) => {
 // Define service categories
 const services = [
   {
-    category: "🧹 Domestic Help",
-    options: ["Cooking Maid", "Cleaning Maid", "Catering", "Tutor"],
-  },
-  {
-    category: "👨🏻‍🔧 Maintenance",
+    category: "🧹 ተመላላሽ የቤት ሰራተኛ",
     options: [
-      "Satellite Dish",
-      "Electrician",
-      "Plumber",
-      "Home Appliance Repair",
-      "Electronics Repair",
+      { amharic: "የቤት ምግብ ሰራተኛ", english: "Cooking Maid" },
+      { amharic: "የቤት ጽዳት ሰራተኛ", english: "Cleaning Maid" },
+      { amharic: "ምግብ ዝግጅት", english: "Catering" },
+      { amharic: "አስጠኚ", english: "Tutor" },
     ],
   },
   {
-    category: "👷‍♂️ Home Renovation",
+    category: "👨🏻‍🔧 የጥገና ባለሙያ ",
     options: [
-      "Construction",
-      "House Painting",
-      "Gypsum Works",
-      "Plumber",
-      "Aluminium Works",
-      "Carpenter",
-      "Tiling Works",
+      { amharic: "የዲሽ ቴክኒሺያን", english: "Satellite Dish" },
+      { amharic: "ኤሌክትሪሽያን", english: "Electrician" },
+      { amharic: "ቧንቧ ሰራተኛ", english: "Plumber" },
+      { amharic: "ፍሪጅ፣ ምጣድ፣ ልብስ-ማጠቢያ ጥገና", english: "Home Appliance Repair" },
+      { amharic: "የኤሌክትሮኒክስ ጥገና", english: "Electronics Repair" },
     ],
   },
   {
-    category: "📈 Business",
-    options: ["Accountant", "Salesman", "Receptionist", "Secretary", "Cashier"],
+    category: "👷‍♂️ የቤት እድሳት ባለሙያ",
+    options: [
+      { amharic: "ግንባታ", english: "Construction" },
+      { amharic: "ቀለም ቀቢ", english: "House Painting" },
+      { amharic: "የጂፕሰም ስራ", english: "Gypsum Works" },
+      { amharic: "ቧንቧ ሰራተኛ", english: "Plumber" },
+      { amharic: "የአሉሚኒየም ስራ", english: "Aluminium Works" },
+      { amharic: "አናጺ", english: "Carpenter" },
+      { amharic: "ታይል ንጣፍ ስራ", english: "Tiling Works" },
+    ],
+  },
+  {
+    category: "📈 ለድርጅቶች",
+    options: [
+      { amharic: "የሒሳብ ባለሙያ", english: "Accountant" },
+      { amharic: "የሽያጭ ሰራተኛ", english: "Salesman" },
+      { amharic: "እንግዳ ተቀባይ", english: "Receptionist" },
+      { amharic: "ፀሃፊ", english: "Secretary" },
+      { amharic: "ካሸር", english: "Cashier" },
+    ],
   },
 ];
 
@@ -162,26 +172,43 @@ serviceScene.action(
     ctx.session.serviceOptions = options;
 
     const serviceOptionButtons = chunkArray(options, 2).map((chunk) =>
-      chunk.map((option) => Markup.button.callback(option, option))
+      chunk.map((option) =>
+        Markup.button.callback(option.amharic, option.amharic)
+      )
     );
 
     ctx.reply(
-      `ከመረጡት የአገልግሎት ዘርፍ ውስጥ የሚፈልጉትን የባለሙያ አይነት ይምረጡ ${selectedCategory}:`,
+      `ከመረጡት ${selectedCategory} ውስጥ የሚፈልጉትን የባለሙያ አይነት ይምረጡ:`,
       Markup.inlineKeyboard(serviceOptionButtons)
     );
   }
 );
 
 // Handle specific service selection
+// serviceScene.action(
+//   services.flatMap((category) => category.options),
+//   (ctx) => {
+//     ctx.session.selectedService = ctx.match[0];
+//     ctx.reply(`የጠየቁት ባለሙያ: ${ctx.session.selectedService}`);
+//     ctx.scene.enter("description");
+//   }
+// );
+
+// Handle specific service selection
 serviceScene.action(
-  services.flatMap((category) => category.options),
+  services.flatMap((category) =>
+    category.options.map((option) => option.amharic)
+  ),
   (ctx) => {
-    ctx.session.selectedService = ctx.match[0];
-    ctx.reply(`የጠየቁት ባለሙያ: ${ctx.session.selectedService}`);
+    const selectedAmharicService = ctx.match[0];
+    ctx.session.selectedServiceAmharic = selectedAmharicService;
+    ctx.session.selectedServiceEnglish = services
+      .flatMap((category) => category.options)
+      .find((option) => option.amharic === selectedAmharicService).english;
+    ctx.reply(`የጠየቁት ባለሙያ: ${selectedAmharicService}`);
     ctx.scene.enter("description");
   }
 );
-
 // Description scene
 descriptionScene.enter((ctx) =>
   ctx.reply("የተሟላ አገልግሎት እንድንሰጥዎ ስለሚጠይቁት አገልግሎት የተወሰነ ማብራሪያ ያስገቡ")
@@ -201,14 +228,14 @@ phoneScene.on("text", async (ctx) => {
   const requestDetails = `
     ሙሉ ስም: ${ctx.session.name}
     አድራሻ: ${ctx.session.location}
-    የተጠየቁት አገልግሎት: ${ctx.session.selectedService}
+    የተጠየቁት አገልግሎት: ${ctx.session.selectedServiceAmharic}
     የአገልግሎት ማብራሪያ: ${ctx.session.description}
     ስልክ ቁጥር: ${ctx.session.phone}
   `;
 
   // Create a Jira ticket
   try {
-    const summary = `${ctx.session.selectedService}`;
+    const summary = `${ctx.session.selectedServiceEnglish}`;
     const description = `${ctx.session.description}`;
     const additionalFields = {
       // customfield_10035: ctx.session.name,
@@ -221,7 +248,7 @@ phoneScene.on("text", async (ctx) => {
       customfield_10031: ctx.session.name,
       customfield_10035: ctx.session.location,
       customfield_10034: ctx.session.phone,
-      customfield_10036: ctx.session.selectedService,
+      customfield_10036: ctx.session.selectedServiceEnglish,
       customfield_10037: requestTime,
     };
 
@@ -238,10 +265,10 @@ phoneScene.on("text", async (ctx) => {
     console.error(error);
   }
 
-  // Clear session data but don't set it to null
   ctx.session.name = null;
   ctx.session.location = null;
-  ctx.session.selectedService = null;
+  ctx.session.selectedServiceEnglish = null;
+  ctx.session.selectedServiceAmharic = null;
   ctx.session.description = null;
   ctx.session.phone = null;
 
