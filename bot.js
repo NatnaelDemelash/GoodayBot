@@ -2,7 +2,6 @@ require("dotenv").config();
 const { Telegraf, Scenes, session, Markup } = require("telegraf");
 const { BaseScene, Stage } = Scenes;
 const JiraClient = require("jira-client");
-const { formatISO } = require("date-fns");
 // const axios = require("axios");
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
@@ -96,6 +95,33 @@ const chunkArray = (array, chunkSize) => {
   return chunks;
 };
 
+// Function to format date and time for Jira
+const jiraDateFormat = (dd) => {
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+  const m = months[dd.getMonth()];
+  const d = dd.getDate();
+  const y = dd.getFullYear();
+  let h = dd.getHours();
+  const M = dd.getMinutes();
+  const ampm = h >= 12 ? "PM" : "AM";
+  h = h % 12;
+  h = h ? h : 12; // the hour '0' should be '12'
+  return `${m} ${d}, ${y}, ${h}:${M <= 9 ? `0${M}` : M} ${ampm}`;
+};
+
 // Name scene
 nameScene.enter((ctx) => ctx.reply("እባክዎ ሙሉ ስምዎትን ያስገቡ:"));
 nameScene.on("text", (ctx) => {
@@ -170,13 +196,13 @@ phoneScene.enter((ctx) => ctx.reply("የሞባይል ቁጥርዎትን ያስ�
 phoneScene.on("text", async (ctx) => {
   ctx.session.phone = ctx.message.text;
 
-  const requestTime = formatISO(new Date());
+  const requestTime = jiraDateFormat(new Date());
   // Collect all the information
   const requestDetails = `
     ሙሉ ስም: ${ctx.session.name}
     አድራሻ: ${ctx.session.location}
     የተጠየቁት አገልግሎት: ${ctx.session.selectedService}
-    ለጠየቁት አገልግሎት ያስገቡት ማብራሪያ: ${ctx.session.description}
+    የአገልግሎት ማብራሪያ: ${ctx.session.description}
     ስልክ ቁጥር: ${ctx.session.phone}
   `;
 
@@ -185,11 +211,18 @@ phoneScene.on("text", async (ctx) => {
     const summary = `${ctx.session.selectedService}`;
     const description = `${ctx.session.description}`;
     const additionalFields = {
-      customfield_10035: ctx.session.name,
-      customfield_10036: ctx.session.phone,
-      customfield_10038: ctx.session.location,
-      customfield_10034: ctx.session.selectedService,
-      customfield_10045: requestTime,
+      // customfield_10035: ctx.session.name,
+      // customfield_10036: ctx.session.phone,
+      // customfield_10038: ctx.session.location,
+      // customfield_10034: ctx.session.selectedService,
+      // customfield_10045: requestTime,
+
+      // Test (Personal KAN Project)
+      customfield_10031: ctx.session.name,
+      customfield_10035: ctx.session.location,
+      customfield_10034: ctx.session.phone,
+      customfield_10036: ctx.session.selectedService,
+      customfield_10037: requestTime,
     };
 
     const jiraResponse = await createJiraTicket(
@@ -197,8 +230,8 @@ phoneScene.on("text", async (ctx) => {
       description,
       additionalFields
     );
-    await ctx.reply(
-      `ተሳክቷል! ትዕዛዝዎን ተቀብለናል.\n${requestDetails}\n\n የደንበኛ ግልጋሎት ባለሙያዎቻችን በ 10 ደቂቃ ውስጥ ትዕዛዝዎን ማስተናገድ ይጀምራሉ.\n\nየአገልግሎት ትዕዛዝ ቁጥርዎ: ${jiraResponse.key}\n\n ባስገቡት የአገልግሎት ጥያቄ ላይ ተጨማሪ ማብራሪያ ካስፈለገን እንደውልሎታለን።\n\nጉዳይን ስለመረጡ እናመሰግናለን!`
+    await ctx.replyWithHTML(
+      `ተሳክቷል! ትዕዛዝዎን ተቀብለናል.\n <b>${requestDetails}</b>\n\nየደንበኛ ግልጋሎት ባለሙያዎቻችን በ 10 ደቂቃ ውስጥ ትዕዛዝዎን ማስተናገድ ይጀምራሉ.\n\n  <b>የአገልግሎት ትዕዛዝ ቁጥርዎ:</b> ${jiraResponse.key}\n\n ባስገቡት የአገልግሎት ጥያቄ ላይ ተጨማሪ ማብራሪያ ካስፈለገን እንደውልሎታለን።\n\nጉዳይን ስለመረጡ እናመሰግናለን!`
     );
   } catch (error) {
     await ctx.reply("ጥያቄዎን በአግባቡ መቀበል አልተቻለም። እባክዎን እንደገና ይሞክሩ!");
