@@ -121,6 +121,7 @@ const jiraDateFormat = (dd) => {
     "Nov",
     "Dec",
   ];
+
   const m = months[dd.getMonth()];
   const d = dd.getDate();
   const y = dd.getFullYear();
@@ -129,6 +130,7 @@ const jiraDateFormat = (dd) => {
   const ampm = h >= 12 ? "PM" : "AM";
   h = h % 12;
   h = h ? h : 12; // the hour '0' should be '12'
+
   return `${m} ${d}, ${y}, ${h}:${M <= 9 ? `0${M}` : M} ${ampm}`;
 };
 
@@ -223,7 +225,8 @@ phoneScene.enter((ctx) => ctx.reply("የሞባይል ቁጥርዎትን ያስ�
 phoneScene.on("text", async (ctx) => {
   ctx.session.phone = ctx.message.text;
 
-  const requestTime = jiraDateFormat(new Date());
+  const currentDate = new Date();
+  const formattedDate = jiraDateFormat(currentDate);
   // Collect all the information
   const requestDetails = `
     ሙሉ ስም: ${ctx.session.name}
@@ -238,18 +241,18 @@ phoneScene.on("text", async (ctx) => {
     const summary = `${ctx.session.selectedServiceEnglish}`;
     const description = `${ctx.session.description}`;
     const additionalFields = {
-      // customfield_10035: ctx.session.name,
-      // customfield_10036: ctx.session.phone,
-      // customfield_10038: ctx.session.location,
-      // customfield_10034: ctx.session.selectedService,
-      // customfield_10045: requestTime,
+      customfield_10035: ctx.session.name,
+      customfield_10036: ctx.session.phone,
+      customfield_10038: ctx.session.location,
+      customfield_10034: ctx.session.selectedServiceEnglish,
+      customfield_10298: formattedDate,
 
       // Test (Personal KAN Project)
-      customfield_10031: ctx.session.name,
-      customfield_10035: ctx.session.location,
-      customfield_10034: ctx.session.phone,
-      customfield_10036: ctx.session.selectedServiceEnglish,
-      customfield_10037: requestTime,
+      // customfield_10031: ctx.session.name,
+      // customfield_10035: ctx.session.location,
+      // customfield_10034: ctx.session.phone,
+      // customfield_10036: ctx.session.selectedServiceEnglish,
+      // customfield_10040: formattedDate,
     };
 
     const jiraResponse = await createJiraTicket(
@@ -258,7 +261,7 @@ phoneScene.on("text", async (ctx) => {
       additionalFields
     );
     await ctx.replyWithHTML(
-      `ተሳክቷል! ትዕዛዝዎን ተቀብለናል.\n <b>${requestDetails}</b>\n\nየደንበኛ ግልጋሎት ባለሙያዎቻችን በ 10 ደቂቃ ውስጥ ትዕዛዝዎን ማስተናገድ ይጀምራሉ.\n\n  <b>የአገልግሎት ትዕዛዝ ቁጥርዎ:</b> ${jiraResponse.key}\n\n ባስገቡት የአገልግሎት ጥያቄ ላይ ተጨማሪ ማብራሪያ ካስፈለገን እንደውልሎታለን።\n\nጉዳይን ስለመረጡ እናመሰግናለን!`
+      `ተሳክቷል! ትዕዛዝዎን ተቀብለናል.\n <b>${requestDetails}</b>\n\nየደንበኛ ግልጋሎት ባለሙያዎቻችን በ 10 ደቂቃ ውስጥ ትዕዛዝዎን ማስተናገድ ይጀምራሉ.\n\n <b>የአገልግሎት ትዕዛዝ ቁጥርዎ:</b> ${jiraResponse.key}\n\n ባስገቡት የአገልግሎት ጥያቄ ላይ ተጨማሪ ማብራሪያ ካስፈለገን እንደውልሎታለን።\n\nጉዳይን ስለመረጡ እናመሰግናለን!`
     );
   } catch (error) {
     await ctx.reply("ጥያቄዎን በአግባቡ መቀበል አልተቻለም። እባክዎን እንደገና ይሞክሩ!");
