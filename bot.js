@@ -105,6 +105,19 @@ const chunkArray = (array, chunkSize) => {
   return chunks;
 };
 
+// Function to format the phone number
+const formatPhoneNumber = (phone) => {
+  if (phone.startsWith("09") && phone.length === 10) {
+    return `+251${phone.slice(1)}`;
+  }
+  return phone; // Return the phone number as is if it doesn't match the expected format
+};
+
+// Function to validate the phone number
+const validatePhoneNumber = (phone) => {
+  return phone.startsWith("09") && phone.length === 10;
+};
+
 // Function to format date and time for Jira
 const jiraDateFormat = (dd) => {
   const months = [
@@ -223,10 +236,20 @@ descriptionScene.on("text", (ctx) => {
 // Phone scene
 phoneScene.enter((ctx) => ctx.reply("የሞባይል ቁጥርዎትን ያስገቡ:"));
 phoneScene.on("text", async (ctx) => {
-  ctx.session.phone = ctx.message.text;
+  const phoneInput = ctx.message.text;
 
   const currentDate = new Date();
   const formattedDate = jiraDateFormat(currentDate);
+
+  if (!validatePhoneNumber(phoneInput)) {
+    await ctx.reply(
+      "Please enter a valid phone number. It should be 10 digits long and start with '09'."
+    );
+    return; // Stop further processing if the phone number is invalid
+  }
+
+  ctx.session.phone = formatPhoneNumber(phoneInput);
+
   // Collect all the information
   const requestDetails = `
     ሙሉ ስም: ${ctx.session.name}
@@ -241,18 +264,18 @@ phoneScene.on("text", async (ctx) => {
     const summary = `${ctx.session.selectedServiceEnglish}`;
     const description = `${ctx.session.description}`;
     const additionalFields = {
-      customfield_10035: ctx.session.name,
-      customfield_10036: ctx.session.phone,
-      customfield_10038: ctx.session.location,
-      customfield_10034: ctx.session.selectedServiceEnglish,
-      customfield_10298: formattedDate,
+      // customfield_10035: ctx.session.name,
+      // customfield_10036: ctx.session.phone,
+      // customfield_10038: ctx.session.location,
+      // customfield_10034: ctx.session.selectedServiceEnglish,
+      // customfield_10298: formattedDate,
 
       // Test (Personal KAN Project)
-      // customfield_10031: ctx.session.name,
-      // customfield_10035: ctx.session.location,
-      // customfield_10034: ctx.session.phone,
-      // customfield_10036: ctx.session.selectedServiceEnglish,
-      // customfield_10040: formattedDate,
+      customfield_10031: ctx.session.name,
+      customfield_10035: ctx.session.location,
+      customfield_10034: ctx.session.phone,
+      customfield_10036: ctx.session.selectedServiceEnglish,
+      customfield_10040: formattedDate,
     };
 
     const jiraResponse = await createJiraTicket(
@@ -268,6 +291,7 @@ phoneScene.on("text", async (ctx) => {
     console.error(error);
   }
 
+  // ctx.session = null
   ctx.session.name = null;
   ctx.session.location = null;
   ctx.session.selectedServiceEnglish = null;
