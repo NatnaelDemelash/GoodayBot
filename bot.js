@@ -110,7 +110,7 @@ const formatPhoneNumber = (phone) => {
   if (phone.startsWith("09") && phone.length === 10) {
     return `+251${phone.slice(1)}`;
   }
-  return phone; // Return the phone number as is if it doesn't match the expected format
+  return phone;
 };
 
 // Function to validate the phone number
@@ -243,7 +243,7 @@ phoneScene.on("text", async (ctx) => {
 
   if (!validatePhoneNumber(phoneInput)) {
     await ctx.reply(
-      "Please enter a valid phone number. It should be 10 digits long and start with '09'."
+      "የተሳሳተ የሞባይል ቁጥር አስገብተዋል። እባክዎ በ'09' መጀመሩን እና  10 አሃዝ መሆኑን ያረጋግጡ."
     );
     return; // Stop further processing if the phone number is invalid
   }
