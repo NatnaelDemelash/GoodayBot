@@ -69,7 +69,7 @@ const services = [
     category: "👷‍♂️ የቤት እድሳት ባለሙያ",
     options: [
       { amharic: "ግንባታ", english: "Construction" },
-      { amharic: "ቀለም ቀቢ", english: "House Painting" },
+      { amharic: "ቀለም ቀቢ", english: "Painting" },
       { amharic: "የጂፕሰም ስራ", english: "Gypsum Works" },
       { amharic: "ቧንቧ ሰራተኛ", english: "Plumber" },
       { amharic: "የአሉሚኒየም ስራ", english: "Aluminium Works" },
@@ -90,11 +90,11 @@ const services = [
 ];
 
 // Scenes for each step
+const phoneScene = new BaseScene("phone");
 const nameScene = new BaseScene("name");
 const locationScene = new BaseScene("location");
 const serviceScene = new BaseScene("service");
 const descriptionScene = new BaseScene("description");
-const phoneScene = new BaseScene("phone");
 
 // Function to split array into chunks
 const chunkArray = (array, chunkSize) => {
@@ -103,19 +103,6 @@ const chunkArray = (array, chunkSize) => {
     chunks.push(array.slice(i, i + chunkSize));
   }
   return chunks;
-};
-
-// Function to format the phone number
-const formatPhoneNumber = (phone) => {
-  if (phone.startsWith("09") && phone.length === 10) {
-    return `+251${phone.slice(1)}`;
-  }
-  return phone;
-};
-
-// Function to validate the phone number
-const validatePhoneNumber = (phone) => {
-  return phone.startsWith("09") && phone.length === 10;
 };
 
 // Function to format date and time for Jira
@@ -147,15 +134,30 @@ const jiraDateFormat = (dd) => {
   return `${m} ${d}, ${y}, ${h}:${M <= 9 ? `0${M}` : M} ${ampm}`;
 };
 
+// Phone scene
+phoneScene.enter((ctx) => {
+  ctx.reply(
+    "እባክዎን የሞባይል ቁጥርዎትን ማየት እንድንችል ይፍቀዱልን",
+    Markup.keyboard([Markup.button.contactRequest("የሞባይል ቁጥር አጋራ")])
+      .oneTime()
+      .resize()
+  );
+});
+phoneScene.on("contact", (ctx) => {
+  ctx.session.phone = ctx.message.contact.phone_number;
+  ctx.reply(`እናመሰግናለን! የሞባይል ቁጥርዎን በተሳካ ሁኔታ ደርሶናል!`);
+  ctx.scene.enter("name");
+});
+
 // Name scene
-nameScene.enter((ctx) => ctx.reply("እባክዎ ሙሉ ስምዎትን ያስገቡ:"));
+nameScene.enter((ctx) => ctx.reply("ሙሉ ስም :"));
 nameScene.on("text", (ctx) => {
   ctx.session.name = ctx.message.text;
   ctx.scene.enter("location");
 });
 
 // Location scene
-locationScene.enter((ctx) => ctx.reply("ባለሙያ እንዲላክ የሚፈልጉበትን አድራሻ ያስገቡ:"));
+locationScene.enter((ctx) => ctx.reply("ባለሙያ እንዲላክ የሚፈልጉበትን አድራሻ:"));
 locationScene.on("text", (ctx) => {
   ctx.session.location = ctx.message.text;
   ctx.scene.enter("service");
@@ -200,16 +202,6 @@ serviceScene.action(
 );
 
 // Handle specific service selection
-// serviceScene.action(
-//   services.flatMap((category) => category.options),
-//   (ctx) => {
-//     ctx.session.selectedService = ctx.match[0];
-//     ctx.reply(`የጠየቁት ባለሙያ: ${ctx.session.selectedService}`);
-//     ctx.scene.enter("description");
-//   }
-// );
-
-// Handle specific service selection
 serviceScene.action(
   services.flatMap((category) =>
     category.options.map((option) => option.amharic)
@@ -224,37 +216,22 @@ serviceScene.action(
     ctx.scene.enter("description");
   }
 );
+
 // Description scene
 descriptionScene.enter((ctx) =>
-  ctx.reply("የተሟላ አገልግሎት እንድንሰጥዎ ስለሚጠይቁት አገልግሎት የተወሰነ ማብራሪያ ያስገቡ")
+  ctx.reply("ብቁ የሆነ ባለሞያ ለመምረጥ እንዲረዳን ስለስራው ጥቂት ማብራሪያ ይጻፉ፡")
 );
-descriptionScene.on("text", (ctx) => {
+descriptionScene.on("text", async (ctx) => {
   ctx.session.description = ctx.message.text;
-  ctx.scene.enter("phone");
-});
-
-// Phone scene
-phoneScene.enter((ctx) => ctx.reply("የሞባይል ቁጥርዎትን ያስገቡ:"));
-phoneScene.on("text", async (ctx) => {
-  const phoneInput = ctx.message.text;
 
   const currentDate = new Date();
   const formattedDate = jiraDateFormat(currentDate);
-
-  if (!validatePhoneNumber(phoneInput)) {
-    await ctx.reply(
-      "የተሳሳተ የሞባይል ቁጥር አስገብተዋል። እባክዎ በ'09' መጀመሩን እና  10 አሃዝ መሆኑን ያረጋግጡ."
-    );
-    return; // Stop further processing if the phone number is invalid
-  }
-
-  ctx.session.phone = formatPhoneNumber(phoneInput);
 
   // Collect all the information
   const requestDetails = `
     ሙሉ ስም: ${ctx.session.name}
     አድራሻ: ${ctx.session.location}
-    የተጠየቁት አገልግሎት: ${ctx.session.selectedServiceAmharic}
+    የጠየቁት አገልግሎት: ${ctx.session.selectedServiceAmharic}
     የአገልግሎት ማብራሪያ: ${ctx.session.description}
     ስልክ ቁጥር: ${ctx.session.phone}
   `;
@@ -288,39 +265,28 @@ phoneScene.on("text", async (ctx) => {
     );
   } catch (error) {
     await ctx.reply("ጥያቄዎን በአግባቡ መቀበል አልተቻለም። እባክዎን እንደገና ይሞክሩ!");
-    console.error(error);
+    console.error("Error creating Jira ticket:", error);
   }
 
-  // ctx.session = null
-  ctx.session.name = null;
-  ctx.session.location = null;
-  ctx.session.selectedServiceEnglish = null;
-  ctx.session.selectedServiceAmharic = null;
-  ctx.session.description = null;
-  ctx.session.phone = null;
-
-  // Leave the current scene and go back to the start
   ctx.scene.leave();
-  // ctx.scene.enter("name");
 });
 
-// Create a stage with the scenes
+// Stage
 const stage = new Stage([
+  phoneScene,
   nameScene,
   locationScene,
   serviceScene,
   descriptionScene,
-  phoneScene,
 ]);
 
-// Register session middleware and stage
 bot.use(session());
 bot.use(stage.middleware());
 
 // Start command to initiate the scene
 bot.start((ctx) => {
   ctx.reply(
-    `🖐️ Welcome to GoodayOn telegram bot! \n\n💁 GoodayOn is a gig platform that connects skilled professionals with individuals and businesses in need of their services\n\nጉዳይኦን በቅርብ ርቀት ላይ የሚገኙ ስራ እና ሰራተኛን በቀላሉ የሚያገናኝ የሞባይል መተግበሪያ ነው፡፡
+    `💁 GoodayOn is a gig platform that connects skilled professionals with individuals and businesses in need of their services\n\nጉዳይኦን ማንነታቸው እና የሙያ ብቃታቸው የተረጋገጠ ባለሞያዎችን በቀላሉ ማግኘት የሚያስችል ዲጂታል አገልግሎት ነው
     `
   );
   ctx.reply(`
@@ -331,7 +297,7 @@ bot.start((ctx) => {
 });
 
 // Command to initiate the request scene
-bot.command("request", (ctx) => ctx.scene.enter("name"));
+bot.command("request", (ctx) => ctx.scene.enter("phone"));
 
 // Help command
 bot.help((ctx) =>
