@@ -138,10 +138,38 @@ locationScene.on('text', (ctx) => {
   ctx.scene.enter('service');
 });
 
-// Service scene
+const categoryMapping = {
+  'Domestic Help': 'ተመላላሽ የቤት ሰራተኛ',
+  'Technician & Maintenance': 'የጥገና ባለሙያ',
+  'Technic & Vocational (TVET)': 'የቤት እድሳት ባለሙያ',
+  'Business Operation': 'ለድርጅቶች',
+};
+
+const serviceMapping = {
+  'Cooking Maid': 'የቤት ምግብ ሰራተኛ',
+  'Cleaning Maid': 'የቤት ጽዳት ሰራተኛ',
+  Catering: 'ምግብ ዝግጅት',
+  Tutor: 'አስጠኚ',
+  'Satellite Dish Tech': 'የዲሽ ቴክኒሺያን',
+  Electrician: 'ኤሌክትሪሽያን',
+  Plumber: 'ቧንቧ ሰራተኛ',
+  'Home Appliance Repair': 'ፍሪጅ፣ ምጣድ፣ ልብስ-ማጠቢያ ጥገና',
+  'Electronics Repair': 'የኤሌክትሮኒክስ ጥገና',
+  Construction: 'ግንባታ',
+  Painter: 'ቀለም ቀቢ',
+  'Gypsum Works': 'የጂፕሰም ስራ',
+  'Aluminium Works': 'የአሉሚኒየም ስራ',
+  Carpenter: 'አናጺ',
+  'Tiling Works': 'ታይል ንጣፍ ስራ',
+  Accountant: 'የሒሳብ ባለሙያ',
+  Salesman: 'የሽያጭ ሰራተኛ',
+  Receptionist: 'እንግዳ ተቀባይ',
+  Secretary: 'ፀሃፊ',
+  Cashier: 'ካሸር',
+};
+
 serviceScene.enter(async (ctx) => {
   try {
-    // Fetch services from Firestore
     const serviceDoc = await db
       .collection('services')
       .doc('gooday_headline_services')
@@ -158,14 +186,13 @@ serviceScene.enter(async (ctx) => {
       return;
     }
 
-    // Reply with service categories in 2-button rows
     await ctx.reply(
       'እባክዎ በቅድሚያ የአገልግሎት ዘርፍ ይምረጡ:',
       Markup.inlineKeyboard(
         chunkArray(
           categories.map((category) =>
             Markup.button.callback(
-              category.category,
+              categoryMapping[category.category] || category.category,
               `category_${category.category}`
             )
           ),
@@ -180,14 +207,12 @@ serviceScene.enter(async (ctx) => {
   }
 });
 
-// Handle category selection
 serviceScene.on('callback_query', async (ctx) => {
   const selectedCategory = ctx.callbackQuery.data;
 
   if (selectedCategory.startsWith('category_')) {
     const categoryName = selectedCategory.replace('category_', '');
 
-    // Fetch services for the selected category
     try {
       const serviceDoc = await db
         .collection('services')
@@ -207,16 +232,19 @@ serviceScene.on('callback_query', async (ctx) => {
         return;
       }
 
-      // Save selected category in session
       ctx.session.selectedCategory = categoryName;
 
-      // Reply with services for the selected category in 2-button rows
       await ctx.reply(
-        `ከመረጡት ${categoryName} ውስጥ የሚፈልጉትን የባለሙያ አይነት ይምረጡ:`,
+        `ከመረጡት ${
+          categoryMapping[categoryName] || categoryName
+        } ውስጥ የሚፈልጉትን የባለሙያ አይነት ይምረጡ:`,
         Markup.inlineKeyboard(
           chunkArray(
             category.services.map((service) =>
-              Markup.button.callback(service, `service_${service}`)
+              Markup.button.callback(
+                serviceMapping[service] || service,
+                `service_${service}`
+              )
             ),
             2
           )
@@ -229,11 +257,11 @@ serviceScene.on('callback_query', async (ctx) => {
     }
   } else if (selectedCategory.startsWith('service_')) {
     const selectedService = selectedCategory.replace('service_', '');
-
-    // Confirm selected service and move to description scene
     ctx.session.selectedService = selectedService;
 
-    ctx.reply(`የጠየቁት ባለሙያ: ${selectedService}`);
+    ctx.reply(
+      `የጠየቁት ባለሙያ: ${serviceMapping[selectedService] || selectedService}`
+    );
     ctx.scene.enter('description');
   }
 });
@@ -248,18 +276,19 @@ descriptionScene.on('text', async (ctx) => {
   const currentDate = new Date();
   const formattedDate = jiraDateFormat(currentDate);
 
-  // Collect all the information
   const requestDetails = `
     ሙሉ ስም: ${ctx.session.name}
     አድራሻ: ${ctx.session.location}
-    የጠየቁት አገልግሎት: ${ctx.session.selectedServiceAmharic}
+    የጠየቁት አገልግሎት: ${
+      serviceMapping[ctx.session.selectedService] || ctx.session.selectedService
+    }
     የአገልግሎት ማብራሪያ: ${ctx.session.description}
     ስልክ ቁጥር: ${ctx.session.phone}
   `;
 
   // Create a Jira ticket
   try {
-    const summary = `${ctx.session.selectedServiceEnglish}`;
+    const summary = `${ctx.session.selectedService}`;
     const description = `${ctx.session.description}`;
     const additionalFields = {
       // customfield_10035: ctx.session.name,
@@ -272,7 +301,7 @@ descriptionScene.on('text', async (ctx) => {
       customfield_10031: ctx.session.name,
       customfield_10035: ctx.session.location,
       customfield_10034: ctx.session.phone,
-      customfield_10036: ctx.session.selectedServiceEnglish,
+      customfield_10036: ctx.session.selectedService,
       customfield_10040: formattedDate,
     };
 
