@@ -1,7 +1,27 @@
-require("dotenv").config();
-const { Telegraf, Scenes, session, Markup } = require("telegraf");
+require('dotenv').config();
+const { Telegraf, Scenes, session, Markup } = require('telegraf');
 const { BaseScene, Stage } = Scenes;
-const JiraClient = require("jira-client");
+const JiraClient = require('jira-client');
+const admin = require('firebase-admin');
+const path = require('path');
+
+const serviceAccountPath = path.resolve(
+  process.env.GOOGLE_APPLICATION_CREDENTIALS
+);
+
+// Check if the serviceAccount variable is already declared
+if (!global.serviceAccount) {
+  global.serviceAccount = require(serviceAccountPath);
+}
+
+// Initialize Firebase Firestore only if it hasn't been initialized yet
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert(global.serviceAccount),
+  });
+}
+
+const db = admin.firestore();
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
@@ -13,11 +33,11 @@ const JIRA_EMAIL = process.env.JIRA_EMAIL;
 
 // Initialize Jira client
 const jira = new JiraClient({
-  protocol: "https",
-  host: JIRA_BASE_URL.replace("https://", ""),
+  protocol: 'https',
+  host: JIRA_BASE_URL.replace('https://', ''),
   username: JIRA_EMAIL,
   password: JIRA_API_TOKEN,
-  apiVersion: "2",
+  apiVersion: '2',
   strictSSL: true,
 });
 
@@ -32,69 +52,24 @@ const createJiraTicket = async (summary, description, additionalFields) => {
         summary,
         description,
         issuetype: {
-          name: "Task",
+          name: 'Task',
         },
         ...additionalFields, // Add additional fields to the Jira issue
       },
     });
     return issue;
   } catch (error) {
-    console.error("Error creating Jira ticket:", error);
+    console.error('Error creating Jira ticket:', error);
     throw error;
   }
 };
 
-// Define service categories
-const services = [
-  {
-    category: "🧹 ተመላላሽ የቤት ሰራተኛ",
-    options: [
-      { amharic: "የቤት ምግብ ሰራተኛ", english: "Cooking Maid" },
-      { amharic: "የቤት ጽዳት ሰራተኛ", english: "Cleaning Maid" },
-      { amharic: "ምግብ ዝግጅት", english: "Catering" },
-      { amharic: "አስጠኚ", english: "Tutor" },
-    ],
-  },
-  {
-    category: "👨🏻‍🔧 የጥገና ባለሙያ ",
-    options: [
-      { amharic: "የዲሽ ቴክኒሺያን", english: "Satellite Dish" },
-      { amharic: "ኤሌክትሪሽያን", english: "Electrician" },
-      { amharic: "ቧንቧ ሰራተኛ", english: "Plumber" },
-      { amharic: "ፍሪጅ፣ ምጣድ፣ ልብስ-ማጠቢያ ጥገና", english: "Home Appliance Repair" },
-      { amharic: "የኤሌክትሮኒክስ ጥገና", english: "Electronics Repair" },
-    ],
-  },
-  {
-    category: "👷‍♂️ የቤት እድሳት ባለሙያ",
-    options: [
-      { amharic: "ግንባታ", english: "Construction" },
-      { amharic: "ቀለም ቀቢ", english: "Painting" },
-      { amharic: "የጂፕሰም ስራ", english: "Gypsum Works" },
-      { amharic: "ቧንቧ ሰራተኛ", english: "Plumber" },
-      { amharic: "የአሉሚኒየም ስራ", english: "Aluminium Works" },
-      { amharic: "አናጺ", english: "Carpenter" },
-      { amharic: "ታይል ንጣፍ ስራ", english: "Tiling Works" },
-    ],
-  },
-  {
-    category: "📈 ለድርጅቶች",
-    options: [
-      { amharic: "የሒሳብ ባለሙያ", english: "Accountant" },
-      { amharic: "የሽያጭ ሰራተኛ", english: "Salesman" },
-      { amharic: "እንግዳ ተቀባይ", english: "Receptionist" },
-      { amharic: "ፀሃፊ", english: "Secretary" },
-      { amharic: "ካሸር", english: "Cashier" },
-    ],
-  },
-];
-
 // Scenes for each step
-const phoneScene = new BaseScene("phone");
-const nameScene = new BaseScene("name");
-const locationScene = new BaseScene("location");
-const serviceScene = new BaseScene("service");
-const descriptionScene = new BaseScene("description");
+const phoneScene = new BaseScene('phone');
+const nameScene = new BaseScene('name');
+const locationScene = new BaseScene('location');
+const serviceScene = new BaseScene('service');
+const descriptionScene = new BaseScene('description');
 
 // Function to split array into chunks
 const chunkArray = (array, chunkSize) => {
@@ -108,18 +83,18 @@ const chunkArray = (array, chunkSize) => {
 // Function to format date and time for Jira
 const jiraDateFormat = (dd) => {
   const months = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
 
   const m = months[dd.getMonth()];
@@ -127,7 +102,7 @@ const jiraDateFormat = (dd) => {
   const y = dd.getFullYear();
   let h = dd.getHours();
   const M = dd.getMinutes();
-  const ampm = h >= 12 ? "PM" : "AM";
+  const ampm = h >= 12 ? 'PM' : 'AM';
   h = h % 12;
   h = h ? h : 12; // the hour '0' should be '12'
 
@@ -137,108 +112,183 @@ const jiraDateFormat = (dd) => {
 // Phone scene
 phoneScene.enter((ctx) => {
   ctx.reply(
-    "እባክዎን የሞባይል ቁጥርዎትን ማየት እንድንችል ይፍቀዱልን",
-    Markup.keyboard([Markup.button.contactRequest("የሞባይል ቁጥር አጋራ")])
+    'እባክዎን የሞባይል ቁጥርዎትን ማየት እንድንችል ይፍቀዱልን',
+    Markup.keyboard([Markup.button.contactRequest('የሞባይል ቁጥር አጋራ')])
       .oneTime()
       .resize()
   );
 });
-phoneScene.on("contact", (ctx) => {
+phoneScene.on('contact', (ctx) => {
   ctx.session.phone = ctx.message.contact.phone_number;
   ctx.reply(`እናመሰግናለን! የሞባይል ቁጥርዎን በተሳካ ሁኔታ ደርሶናል!`);
-  ctx.scene.enter("name");
+  ctx.scene.enter('name');
 });
 
 // Name scene
-nameScene.enter((ctx) => ctx.reply("ሙሉ ስም :"));
-nameScene.on("text", (ctx) => {
+nameScene.enter((ctx) => ctx.reply('ሙሉ ስም :'));
+nameScene.on('text', (ctx) => {
   ctx.session.name = ctx.message.text;
-  ctx.scene.enter("location");
+  ctx.scene.enter('location');
 });
 
 // Location scene
-locationScene.enter((ctx) => ctx.reply("ባለሙያ እንዲላክ የሚፈልጉበትን አድራሻ:"));
-locationScene.on("text", (ctx) => {
+locationScene.enter((ctx) => ctx.reply('ባለሙያ እንዲላክ የሚፈልጉበትን አድራሻ:'));
+locationScene.on('text', (ctx) => {
   ctx.session.location = ctx.message.text;
-  ctx.scene.enter("service");
+  ctx.scene.enter('service');
 });
 
-// Service scene
-serviceScene.enter((ctx) => {
-  const serviceOptions = services.map((category) => category.category);
-  const serviceButtons = chunkArray(serviceOptions, 2).map((chunk) =>
-    chunk.map((option) => Markup.button.callback(option, option))
-  );
+const categoryMapping = {
+  'Domestic Help': 'ተመላላሽ የቤት ሰራተኛ',
+  'Technician & Maintenance': 'የጥገና ባለሙያ',
+  'Technic & Vocational (TVET)': 'የቤት እድሳት ባለሙያ',
+  'Business Operation': 'ለድርጅቶች',
+};
 
-  ctx.reply(
-    "እባክዎ በቅድሚያ የአገልግሎት ዘርፍ ይምረጡ:",
-    Markup.inlineKeyboard(serviceButtons)
-  );
-});
+const serviceMapping = {
+  'Cooking Maid': 'የቤት ምግብ ሰራተኛ',
+  'Cleaning Maid': 'የቤት ጽዳት ሰራተኛ',
+  Catering: 'ምግብ ዝግጅት',
+  Tutor: 'አስጠኚ',
+  'Satellite Dish Tech': 'የዲሽ ቴክኒሺያን',
+  Electrician: 'ኤሌክትሪሽያን',
+  Plumber: 'ቧንቧ ሰራተኛ',
+  'Home Appliance Repair': 'ፍሪጅ፣ ምጣድ፣ ልብስ-ማጠቢያ ጥገና',
+  'Electronics Repair': 'የኤሌክትሮኒክስ ጥገና',
+  Construction: 'ግንባታ',
+  Painter: 'ቀለም ቀቢ',
+  'Gypsum Works': 'የጂፕሰም ስራ',
+  'Aluminium Works': 'የአሉሚኒየም ስራ',
+  Carpenter: 'አናጺ',
+  'Tiling Works': 'ታይል ንጣፍ ስራ',
+  Accountant: 'የሒሳብ ባለሙያ',
+  Salesman: 'የሽያጭ ሰራተኛ',
+  Receptionist: 'እንግዳ ተቀባይ',
+  Secretary: 'ፀሃፊ',
+  Cashier: 'ካሸር',
+};
 
-// Handle category selection
-serviceScene.action(
-  services.map((category) => category.category),
-  (ctx) => {
-    const selectedCategory = ctx.match[0];
-    const options = services.find(
-      (category) => category.category === selectedCategory
-    ).options;
+serviceScene.enter(async (ctx) => {
+  try {
+    const serviceDoc = await db
+      .collection('services')
+      .doc('gooday_headline_services')
+      .get();
 
-    ctx.session.serviceCategory = selectedCategory;
-    ctx.session.serviceOptions = options;
+    if (!serviceDoc.exists) {
+      console.error('Service document does not exist.');
+      return;
+    }
 
-    const serviceOptionButtons = chunkArray(options, 2).map((chunk) =>
-      chunk.map((option) =>
-        Markup.button.callback(option.amharic, option.amharic)
+    const categories = serviceDoc.data().services || [];
+    if (categories.length === 0) {
+      console.error('No categories found in the document.');
+      return;
+    }
+
+    await ctx.reply(
+      'እባክዎ በቅድሚያ የአገልግሎት ዘርፍ ይምረጡ:',
+      Markup.inlineKeyboard(
+        chunkArray(
+          categories.map((category) =>
+            Markup.button.callback(
+              categoryMapping[category.category] || category.category,
+              `category_${category.category}`
+            )
+          ),
+          2
+        )
       )
+        .oneTime()
+        .resize()
     );
+  } catch (error) {
+    console.error('Error fetching services:', error);
+  }
+});
+
+serviceScene.on('callback_query', async (ctx) => {
+  const selectedCategory = ctx.callbackQuery.data;
+
+  if (selectedCategory.startsWith('category_')) {
+    const categoryName = selectedCategory.replace('category_', '');
+
+    try {
+      const serviceDoc = await db
+        .collection('services')
+        .doc('gooday_headline_services')
+        .get();
+
+      if (!serviceDoc.exists) {
+        console.error('Service document does not exist.');
+        return;
+      }
+
+      const categories = serviceDoc.data().services || [];
+      const category = categories.find((cat) => cat.category === categoryName);
+
+      if (!category) {
+        console.error('Selected category not found.');
+        return;
+      }
+
+      ctx.session.selectedCategory = categoryName;
+
+      await ctx.reply(
+        `ከመረጡት ${
+          categoryMapping[categoryName] || categoryName
+        } ውስጥ የሚፈልጉትን የባለሙያ አይነት ይምረጡ:`,
+        Markup.inlineKeyboard(
+          chunkArray(
+            category.services.map((service) =>
+              Markup.button.callback(
+                serviceMapping[service] || service,
+                `service_${service}`
+              )
+            ),
+            2
+          )
+        )
+          .oneTime()
+          .resize()
+      );
+    } catch (error) {
+      console.error('Error fetching services:', error);
+    }
+  } else if (selectedCategory.startsWith('service_')) {
+    const selectedService = selectedCategory.replace('service_', '');
+    ctx.session.selectedService = selectedService;
 
     ctx.reply(
-      `ከመረጡት ${selectedCategory} ውስጥ የሚፈልጉትን የባለሙያ አይነት ይምረጡ:`,
-      Markup.inlineKeyboard(serviceOptionButtons)
+      `የጠየቁት ባለሙያ: ${serviceMapping[selectedService] || selectedService}`
     );
+    ctx.scene.enter('description');
   }
-);
-
-// Handle specific service selection
-serviceScene.action(
-  services.flatMap((category) =>
-    category.options.map((option) => option.amharic)
-  ),
-  (ctx) => {
-    const selectedAmharicService = ctx.match[0];
-    ctx.session.selectedServiceAmharic = selectedAmharicService;
-    ctx.session.selectedServiceEnglish = services
-      .flatMap((category) => category.options)
-      .find((option) => option.amharic === selectedAmharicService).english;
-    ctx.reply(`የጠየቁት ባለሙያ: ${selectedAmharicService}`);
-    ctx.scene.enter("description");
-  }
-);
+});
 
 // Description scene
 descriptionScene.enter((ctx) =>
-  ctx.reply("ብቁ የሆነ ባለሞያ ለመምረጥ እንዲረዳን ስለስራው ጥቂት ማብራሪያ ይጻፉ፡")
+  ctx.reply('ብቁ የሆነ ባለሞያ ለመምረጥ እንዲረዳን ስለስራው ጥቂት ማብራሪያ ይጻፉ፡')
 );
-descriptionScene.on("text", async (ctx) => {
+descriptionScene.on('text', async (ctx) => {
   ctx.session.description = ctx.message.text;
 
   const currentDate = new Date();
   const formattedDate = jiraDateFormat(currentDate);
 
-  // Collect all the information
   const requestDetails = `
     ሙሉ ስም: ${ctx.session.name}
     አድራሻ: ${ctx.session.location}
-    የጠየቁት አገልግሎት: ${ctx.session.selectedServiceAmharic}
+    የጠየቁት አገልግሎት: ${
+      serviceMapping[ctx.session.selectedService] || ctx.session.selectedService
+    }
     የአገልግሎት ማብራሪያ: ${ctx.session.description}
     ስልክ ቁጥር: ${ctx.session.phone}
   `;
 
   // Create a Jira ticket
   try {
-    const summary = `${ctx.session.selectedServiceEnglish}`;
+    const summary = `${ctx.session.selectedService}`;
     const description = `${ctx.session.description}`;
     const additionalFields = {
       // customfield_10035: ctx.session.name,
@@ -251,7 +301,7 @@ descriptionScene.on("text", async (ctx) => {
       customfield_10031: ctx.session.name,
       customfield_10035: ctx.session.location,
       customfield_10034: ctx.session.phone,
-      customfield_10036: ctx.session.selectedServiceEnglish,
+      customfield_10036: ctx.session.selectedService,
       customfield_10040: formattedDate,
     };
 
@@ -264,8 +314,8 @@ descriptionScene.on("text", async (ctx) => {
       `ተሳክቷል! ትዕዛዝዎን ተቀብለናል.\n <b>${requestDetails}</b>\n\nየደንበኛ ግልጋሎት ባለሙያዎቻችን በ 10 ደቂቃ ውስጥ ትዕዛዝዎን ማስተናገድ ይጀምራሉ.\n\n <b>የአገልግሎት ትዕዛዝ ቁጥርዎ:</b> ${jiraResponse.key}\n\n ባስገቡት የአገልግሎት ጥያቄ ላይ ተጨማሪ ማብራሪያ ካስፈለገን እንደውልሎታለን።\n\nጉዳይን ስለመረጡ እናመሰግናለን!`
     );
   } catch (error) {
-    await ctx.reply("ጥያቄዎን በአግባቡ መቀበል አልተቻለም። እባክዎን እንደገና ይሞክሩ!");
-    console.error("Error creating Jira ticket:", error);
+    await ctx.reply('ጥያቄዎን በአግባቡ መቀበል አልተቻለም። እባክዎን እንደገና ይሞክሩ!');
+    console.error('Error creating Jira ticket:', error);
   }
 
   ctx.scene.leave();
@@ -297,7 +347,7 @@ bot.start((ctx) => {
 });
 
 // Command to initiate the request scene
-bot.command("request", (ctx) => ctx.scene.enter("phone"));
+bot.command('request', (ctx) => ctx.scene.enter('phone'));
 
 // Help command
 bot.help((ctx) =>
@@ -312,12 +362,12 @@ bot.help((ctx) =>
 bot
   .launch()
   .then(() => {
-    console.log("Bot is running...");
+    console.log('Bot is running...');
   })
   .catch((err) => {
-    console.error("Bot startup error:", err);
+    console.error('Bot startup error:', err);
   });
 
 // Enable graceful stop
-process.once("SIGINT", () => bot.stop("SIGINT"));
-process.once("SIGTERM", () => bot.stop("SIGTERM"));
+process.once('SIGINT', () => bot.stop('SIGINT'));
+process.once('SIGTERM', () => bot.stop('SIGTERM'));
