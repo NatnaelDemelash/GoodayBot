@@ -115,10 +115,10 @@ locationScene.on("text", (ctx) => {
 });
 
 const categoryMapping = {
-  "Domestic Help": "ተመላላሽ የቤት ሰራተኛ",
-  "Technician & Maintenance": "የጥገና ባለሙያ",
-  "Technic & Vocational (TVET)": "የቤት እድሳት ባለሙያ",
-  "Business Operation": "ለድርጅት ባለሙያዎች",
+  "Domestic Help": "👩🏽‍🍳ተመላላሽ የቤት ሰራተኛ",
+  "Technician & Maintenance": "👨🏻‍🔧የጥገና ባለሙያ",
+  "Technic & Vocational (TVET)": "👷‍♂️የቤት እድሳት ባለሙያ",
+  "Business Operation": "💼ለድርጅት ባለሙያዎች",
 };
 
 const serviceMapping = {
@@ -289,8 +289,8 @@ descriptionScene.on("text", async (ctx) => {
     );
 
     // Get Current Time
-    const now = new Date();
-    const currentHour = now.getHours();
+
+    const currentHour = serviceRequestTime.getHours();
 
     // Defining our working hour
     const startHour = 7;
