@@ -287,8 +287,25 @@ descriptionScene.on("text", async (ctx) => {
       description,
       additionalFields
     );
+
+    // Get Current Time
+    const now = new Date();
+    const currentHour = now.getHours();
+
+    // Defining our working hour
+    const startHour = 7;
+    const endHour = 18;
+
+    // Determine message based on current time
+    let confirmationMessage;
+    if (currentHour >= startHour && currentHour < endHour) {
+      confirmationMessage = `የደንበኛ ግልጋሎት ባለሙያዎቻችን በ 10 ደቂቃ ውስጥ ትዕዛዝዎን ማስተናገድ ይጀምራሉ።`;
+    } else {
+      confirmationMessage = `ትዕዛዝዎ ከመደበኛው የስራ ሰዓት ውጪ ስለሆነ(ጠዋት 1:00 - ምሽት 12:00) ጥያቄዎን በሚቀጥለው ቀን በስራ ሰዓት ውስጥ እናስተናግዳለን`;
+    }
+
     await ctx.replyWithHTML(
-      `ተሳክቷል! ትዕዛዝዎን ተቀብለናል.\n <b>${requestDetails}</b>\n\nየደንበኛ ግልጋሎት ባለሙያዎቻችን በ 10 ደቂቃ ውስጥ ትዕዛዝዎን ማስተናገድ ይጀምራሉ.\n\n <b>የአገልግሎት ትዕዛዝ ቁጥርዎ:</b> ${jiraResponse.key}\n\n ባስገቡት የአገልግሎት ጥያቄ ላይ ተጨማሪ ማብራሪያ ካስፈለገን እንደውልሎታለን።\n\nጉዳይን ስለመረጡ እናመሰግናለን!`
+      `ተሳክቷል! ትዕዛዝዎን ተቀብለናል.\n <b>${requestDetails}</b>\n\n ${confirmationMessage}\n\n <b>የአገልግሎት ትዕዛዝ ቁጥርዎ:</b> ${jiraResponse.key}\n\n ባስገቡት የአገልግሎት ጥያቄ ላይ ተጨማሪ ማብራሪያ ካስፈለገን እንደውልሎታለን።\n\nጉዳይን ስለመረጡ እናመሰግናለን!`
     );
   } catch (error) {
     await ctx.reply("ጥያቄዎን በአግባቡ መቀበል አልተቻለም። እባክዎን እንደገና ይሞክሩ!");
