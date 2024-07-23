@@ -94,24 +94,24 @@ phoneScene.enter((ctx) => {
       .resize()
   );
 });
-phoneScene.on("contact", (ctx) => {
+phoneScene.on("contact", async (ctx) => {
   ctx.session.phone = ctx.message.contact.phone_number;
-  ctx.reply(`እናመሰግናለን! የሞባይል ቁጥርዎን በተሳካ ሁኔታ ደርሶናል!`);
-  ctx.scene.enter("name");
+  await ctx.reply(`እናመሰግናለን! የሞባይል ቁጥርዎን በተሳካ ሁኔታ ደርሶናል!`);
+  await ctx.scene.enter("name");
 });
 
 // Name scene
 nameScene.enter((ctx) => ctx.reply("እባክዎ ሙሉ ስምዎን ያስገቡ :"));
-nameScene.on("text", (ctx) => {
+nameScene.on("text", async (ctx) => {
   ctx.session.name = ctx.message.text;
-  ctx.scene.enter("location");
+  await ctx.scene.enter("location");
 });
 
 // Location scene
 locationScene.enter((ctx) => ctx.reply("ባለሙያ እንዲላክ የሚፈልጉበትን አድራሻ:"));
-locationScene.on("text", (ctx) => {
+locationScene.on("text", async (ctx) => {
   ctx.session.location = ctx.message.text;
-  ctx.scene.enter("service");
+  await ctx.scene.enter("service");
 });
 
 const categoryMapping = {
@@ -146,6 +146,10 @@ const serviceMapping = {
 
 serviceScene.enter(async (ctx) => {
   try {
+    // Send a loading message
+    const loadingMessage = await ctx.reply("⏳ እባክዎ ትንሽ ይታገሱን...");
+
+    // Fetch data from Firestore
     const serviceDoc = await db
       .collection("services")
       .doc("gooday_headline_services")
@@ -162,7 +166,11 @@ serviceScene.enter(async (ctx) => {
       return;
     }
 
-    await ctx.reply(
+    // Update the message with the fetched categories
+    await ctx.telegram.editMessageText(
+      ctx.chat.id,
+      loadingMessage.message_id,
+      null,
       "እባክዎ በቅድሚያ የአገልግሎት ዘርፍ ይምረጡ:",
       Markup.inlineKeyboard(
         chunkArray(
@@ -235,7 +243,7 @@ serviceScene.on("callback_query", async (ctx) => {
     const selectedService = selectedCategory.replace("service_", "");
     ctx.session.selectedService = selectedService;
 
-    ctx.reply(
+    await ctx.reply(
       `የጠየቁት ባለሙያ: ${serviceMapping[selectedService] || selectedService}`
     );
     ctx.scene.enter("description");
@@ -272,7 +280,7 @@ descriptionScene.on("text", async (ctx) => {
       // customfield_10036: ctx.session.phone,
       // customfield_10038: ctx.session.location,
       // customfield_10034: ctx.session.selectedServiceEnglish,
-      // customfield_10298: formattedServiceRequestTime,
+      // customfield_10045: formattedServiceRequestTime,
 
       // Test (Personal KAN Project)
       customfield_10031: ctx.session.name,
@@ -288,8 +296,7 @@ descriptionScene.on("text", async (ctx) => {
       additionalFields
     );
 
-    // Get Current Time
-
+    // Get Current hour
     const currentHour = serviceRequestTime.getHours();
 
     // Defining our working hour
