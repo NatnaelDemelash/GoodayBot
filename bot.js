@@ -4,6 +4,7 @@ const { BaseScene, Stage } = Scenes;
 const JiraClient = require("jira-client");
 const admin = require("firebase-admin");
 const path = require("path");
+const ntpClient = require("ntp-client");
 
 const serviceAccountPath = path.resolve(
   process.env.GOOGLE_APPLICATION_CREDENTIALS
@@ -80,6 +81,18 @@ const chunkArray = (array, chunkSize) => {
   return chunks;
 };
 
+const getNetworkTime = () => {
+  return new Promise((resolve, reject) => {
+    ntpClient.getNetworkTime("pool.ntp.org", 123, (err, date) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(date);
+      }
+    });
+  });
+};
+
 // Function to format date and time for Jira
 const jiraDateFormat = (dd) => {
   return dd.toISOString();
@@ -87,28 +100,28 @@ const jiraDateFormat = (dd) => {
 
 // Phone scene
 phoneScene.enter((ctx) => {
-  ctx.reply(
-    "ጥያቄዎን ለመቀበል እንዲረዳን ስልክ ቁጥርዎን ማጋራቱን ይፍቀዱልን",
-    Markup.keyboard([Markup.button.contactRequest("የሞባይል ቁጥር አጋራ")])
+  ctx.replyWithHTML(
+    `🟠 ትዕዛዝዎን ለመቀበል እንዲረዳን <b>"ስልክ ቁጥርዎን ያጋሩ"</b> የሚለውን በመጫን ስልክ ቁጥርዎን ያጋሩን`,
+    Markup.keyboard([Markup.button.contactRequest("ስልክ ቁጥርዎን ያጋሩ")])
       .oneTime()
       .resize()
   );
 });
 phoneScene.on("contact", async (ctx) => {
   ctx.session.phone = ctx.message.contact.phone_number;
-  await ctx.reply(`እናመሰግናለን! የሞባይል ቁጥርዎን በተሳካ ሁኔታ ደርሶናል!`);
+  await ctx.reply(`እናመሰግናለን! የሞባይል ቁጥርዎ በተሳካ ሁኔታ ደርሶናል!`);
   await ctx.scene.enter("name");
 });
 
 // Name scene
-nameScene.enter((ctx) => ctx.reply("እባክዎ ሙሉ ስምዎን ያስገቡ :"));
+nameScene.enter((ctx) => ctx.reply("🟠 እባክዎ ሙሉ ስምዎን ያስገቡ"));
 nameScene.on("text", async (ctx) => {
   ctx.session.name = ctx.message.text;
   await ctx.scene.enter("location");
 });
 
 // Location scene
-locationScene.enter((ctx) => ctx.reply("ባለሙያ እንዲላክ የሚፈልጉበትን አድራሻ:"));
+locationScene.enter((ctx) => ctx.reply("🟠 ባለሙያ እንዲላክ የሚፈልጉበትን አድራሻ ያስገቡ"));
 locationScene.on("text", async (ctx) => {
   ctx.session.location = ctx.message.text;
   await ctx.scene.enter("service");
@@ -171,7 +184,7 @@ serviceScene.enter(async (ctx) => {
       ctx.chat.id,
       loadingMessage.message_id,
       null,
-      "እባክዎ በቅድሚያ የአገልግሎት ዘርፍ ይምረጡ:",
+      "🟠 እባክዎ በቅድሚያ የአገልግሎት ዘርፍ ይምረጡ",
       Markup.inlineKeyboard(
         chunkArray(
           categories.map((category) =>
@@ -219,9 +232,9 @@ serviceScene.on("callback_query", async (ctx) => {
       ctx.session.selectedCategory = categoryName;
 
       await ctx.reply(
-        `ከመረጡት ${
+        `🟠 ከመረጡት ${
           categoryMapping[categoryName] || categoryName
-        } ውስጥ የሚፈልጉትን የባለሙያ አይነት ይምረጡ:`,
+        } ውስጥ የሚፈልጉትን የባለሙያ አይነት ይምረጡ`,
         Markup.inlineKeyboard(
           chunkArray(
             category.services.map((service) =>
@@ -252,13 +265,13 @@ serviceScene.on("callback_query", async (ctx) => {
 
 // Description scene
 descriptionScene.enter((ctx) =>
-  ctx.reply("ብቁ የሆነ ባለሞያ ለመምረጥ እንዲረዳን ስለስራው ጥቂት ማብራሪያ ይጻፉ፡")
+  ctx.reply("🟠 ብቁ የሆነ ባለሞያ ለመምረጥ እንዲረዳን ስለስራው ጥቂት ማብራሪያ ይጻፉ")
 );
 descriptionScene.on("text", async (ctx) => {
   ctx.session.description = ctx.message.text;
 
   // Getting Service Request Time
-  const serviceRequestTime = new Date();
+  const serviceRequestTime = await getNetworkTime();
   const formattedServiceRequestTime = jiraDateFormat(serviceRequestTime);
 
   const requestDetails = `
@@ -279,7 +292,7 @@ descriptionScene.on("text", async (ctx) => {
       // customfield_10035: ctx.session.name,
       // customfield_10036: ctx.session.phone,
       // customfield_10038: ctx.session.location,
-      // customfield_10034: ctx.session.selectedServiceEnglish,
+      // customfield_10034: ctx.session.selectedService,
       // customfield_10045: formattedServiceRequestTime,
 
       // Test (Personal KAN Project)
@@ -300,7 +313,7 @@ descriptionScene.on("text", async (ctx) => {
     const currentHour = serviceRequestTime.getHours();
 
     // Defining our working hour
-    const startHour = 7;
+    const startHour = 16;
     const endHour = 18;
 
     // Determine message based on current time
@@ -334,30 +347,36 @@ const stage = new Stage([
 bot.use(session());
 bot.use(stage.middleware());
 
-// Start command to initiate the scene
+// Function to create statrt Menu message
+const getStartMenuMessage = (userName) => {
+  return {
+    text: `ሰላም ${userName}! 👋እንኳን ወደ GoodayOn ቦት በደህና መጡ!\n\n💁ጉዳይኦን ማንነታቸው እና የሙያ ብቃታቸው የተረጋገጠ ባለሞያዎችን በቀላሉ ማግኘት የሚያስችል ቀልጣፋ አገልግሎት ነው\n\n❇️ Request for Service Provider - ባለሙያ ለማዘዝ\n\n❇️ Information - ስለ ጉዳይኦን መረጃ ለማግኘት`,
+    keyboard: Markup.keyboard([
+      ["Request for Service Provider", "Information"],
+    ]).resize(),
+  };
+};
+
 bot.start((ctx) => {
-  ctx.reply(
-    `💁 GoodayOn is a gig platform that connects skilled professionals with individuals and businesses in need of their services\n\nጉዳይኦን ማንነታቸው እና የሙያ ብቃታቸው የተረጋገጠ ባለሞያዎችን በቀላሉ ማግኘት የሚያስችል ዲጂታል አገልግሎት ነው
-    `
-  );
-  ctx.reply(`
-     Here's how you can interact with me:\n
-      - Use /start to start the bot(የቴሌግራም ቦቱን ለማስጘመር)
-      - Use /request to request for a service provider(ባለሙያ/ሰራተኛ ለመጠየቅ)
-      - Use /help if you need assistance(እገዛ ለማግኘት)`);
+  const userName = ctx.from.first_name;
+  const startMenuMessage = getStartMenuMessage(userName);
+  ctx.replyWithHTML(startMenuMessage.text, startMenuMessage.keyboard);
 });
 
-// Command to initiate the request scene
-bot.command("request", (ctx) => ctx.scene.enter("phone"));
+bot.hears("Request for Service Provider", (ctx) => ctx.scene.enter("phone"));
 
-// Help command
-bot.help((ctx) =>
-  ctx.reply(`
-  Here's how you can interact with me:\n
-   - Use /start to start the bot(የቴሌግራም ቦቱን ለማስጘመር)
-   - Use /request to request for a service provider(ባለሙያ/ሰራተኛ ለመጠየቅ)
-   - Use /help if you need assistance(እገዛ ለማግኘት)`)
-);
+bot.hears("Information", (ctx) => {
+  ctx.replyWithHTML(
+    `🌐 <b>Company Website(ድረ-ገጽ):</b> <a href="https://gooday.io">gooday.io</a>\n\n📞 <b>Call Center(የጥሪ ማዕከል አጭር ቁጥር):</b> 9675\n\n<b>📍Office Address(አድራሻ)</b>:Gotera Pepsi\n\n 📱 <b>Download Our App(የጉዳይ መተግበሪያን ለማወረድ):</b>\n\n<a href="https://play.google.com/store/apps/details?id=ai.gooday.goodayon">Google Play</a> | <a href="https://apps.apple.com/us/app/goodayon/id1521933697">App Store</a>`,
+    Markup.keyboard([["Back"]]).resize()
+  );
+});
+
+bot.hears("Back", (ctx) => {
+  const userName = ctx.from.first_name;
+  const startMenuMessage = getStartMenuMessage(userName);
+  ctx.replyWithHTML(startMenuMessage.text, startMenuMessage.keyboard);
+});
 
 // Launch the bot
 bot
