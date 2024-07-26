@@ -5,6 +5,7 @@ const JiraClient = require("jira-client");
 const admin = require("firebase-admin");
 const path = require("path");
 const ntpClient = require("ntp-client");
+const moment = require("moment-timezone");
 
 const serviceAccountPath = path.resolve(
   process.env.GOOGLE_APPLICATION_CREDENTIALS
@@ -81,6 +82,7 @@ const chunkArray = (array, chunkSize) => {
   return chunks;
 };
 
+// Function to get network time
 const getNetworkTime = () => {
   return new Promise((resolve, reject) => {
     ntpClient.getNetworkTime("pool.ntp.org", 123, (err, date) => {
@@ -101,7 +103,7 @@ const jiraDateFormat = (dd) => {
 // Phone scene
 phoneScene.enter((ctx) => {
   ctx.replyWithHTML(
-    `🟠 ትዕዛዝዎን ለመቀበል እንዲረዳን <b>"ስልክ ቁጥርዎን ያጋሩ"</b> የሚለውን በመጫን ስልክ ቁጥርዎን ያጋሩን`,
+    `🟠 ትእዛዝዎን ለመቀበል እንዲረዳን <b>"ስልክ ቁጥርዎን ያጋሩ"</b> የሚለውን በመጫን ስልክ ቁጥርዎን ያጋሩን`,
     Markup.keyboard([Markup.button.contactRequest("ስልክ ቁጥርዎን ያጋሩ")])
       .oneTime()
       .resize()
@@ -289,18 +291,18 @@ descriptionScene.on("text", async (ctx) => {
     const summary = `${ctx.session.selectedService}`;
     const description = `${ctx.session.description}`;
     const additionalFields = {
-      // customfield_10035: ctx.session.name,
-      // customfield_10036: ctx.session.phone,
-      // customfield_10038: ctx.session.location,
-      // customfield_10034: ctx.session.selectedService,
-      // customfield_10045: formattedServiceRequestTime,
+      customfield_10035: ctx.session.name,
+      customfield_10036: ctx.session.phone,
+      customfield_10038: ctx.session.location,
+      customfield_10034: ctx.session.selectedService,
+      customfield_10045: formattedServiceRequestTime,
 
       // Test (Personal KAN Project)
-      customfield_10031: ctx.session.name,
-      customfield_10035: ctx.session.location,
-      customfield_10034: ctx.session.phone,
-      customfield_10036: ctx.session.selectedService,
-      customfield_10039: formattedServiceRequestTime,
+      // customfield_10031: ctx.session.name,
+      // customfield_10035: ctx.session.location,
+      // customfield_10034: ctx.session.phone,
+      // customfield_10036: ctx.session.selectedService,
+      // customfield_10039: formattedServiceRequestTime,
     };
 
     const jiraResponse = await createJiraTicket(
@@ -313,19 +315,19 @@ descriptionScene.on("text", async (ctx) => {
     const currentHour = serviceRequestTime.getHours();
 
     // Defining our working hour
-    const startHour = 16;
+    const startHour = 7;
     const endHour = 18;
 
     // Determine message based on current time
     let confirmationMessage;
     if (currentHour >= startHour && currentHour < endHour) {
-      confirmationMessage = `የደንበኛ ግልጋሎት ባለሙያዎቻችን በ 10 ደቂቃ ውስጥ ትዕዛዝዎን ማስተናገድ ይጀምራሉ።`;
+      confirmationMessage = `የደንበኛ ግልጋሎት ባለሙያዎቻችን በ 10 ደቂቃ ውስጥ ትእዛዝዎን ማስተናገድ ይጀምራሉ።`;
     } else {
-      confirmationMessage = `ትዕዛዝዎ ከመደበኛው የስራ ሰዓት ውጪ ስለሆነ(ጠዋት 1:00 - ምሽት 12:00) ጥያቄዎን በሚቀጥለው ቀን በስራ ሰዓት ውስጥ እናስተናግዳለን`;
+      confirmationMessage = `ይህ የአገልግሎት ትእዛዝ የገባው ከመደበኛ የስራ ሰዓት(ከጠዋት 1 ሰዓት - ከምሽቱ 12 ሰዓት) ውጪ ነው።\b\b ትእዛዝዎ የሚስተናገደው በስራ ሰዓት ነው።`;
     }
 
     await ctx.replyWithHTML(
-      `ተሳክቷል! ትዕዛዝዎን ተቀብለናል.\n <b>${requestDetails}</b>\n\n ${confirmationMessage}\n\n <b>የአገልግሎት ትዕዛዝ ቁጥርዎ:</b> ${jiraResponse.key}\n\n ባስገቡት የአገልግሎት ጥያቄ ላይ ተጨማሪ ማብራሪያ ካስፈለገን እንደውልሎታለን።\n\nጉዳይን ስለመረጡ እናመሰግናለን!`
+      `ተሳክቷል! ትእዛዝዎን ተቀብለናል.\n <b>${requestDetails}</b>\n\n ${confirmationMessage}\n\n <b>የአገልግሎት ትዕዛዝ ቁጥርዎ:</b> ${jiraResponse.key}\n\n ባስገቡት የአገልግሎት ጥያቄ ላይ ተጨማሪ ማብራሪያ ካስፈለገን እንደውልሎታለን።\n\nጉዳይን ስለመረጡ እናመሰግናለን!`
     );
   } catch (error) {
     await ctx.reply("ጥያቄዎን በአግባቡ መቀበል አልተቻለም። እባክዎን እንደገና ይሞክሩ!");
@@ -350,7 +352,7 @@ bot.use(stage.middleware());
 // Function to create statrt Menu message
 const getStartMenuMessage = (userName) => {
   return {
-    text: `ሰላም ${userName}! 👋እንኳን ወደ GoodayOn ቦት በደህና መጡ!\n\n💁ጉዳይኦን ማንነታቸው እና የሙያ ብቃታቸው የተረጋገጠ ባለሞያዎችን በቀላሉ ማግኘት የሚያስችል ቀልጣፋ አገልግሎት ነው\n\n❇️ Request for Service Provider - ባለሙያ ለማዘዝ\n\n❇️ Information - ስለ ጉዳይኦን መረጃ ለማግኘት`,
+    text: `ሰላም ${userName}! 👋እንኳን ወደ GoodayOn ቦት በደህና መጡ!\n\n💁GoodayOn ማንነታቸው እና የሙያ ብቃታቸው የተረጋገጠ ባለሞያዎችን በቀላሉ ማግኘት የሚያስችል ቀልጣፋ አገልግሎት ነው\n\n❇️ Request for Service Provider - ባለሙያ ለማዘዝ\n\n❇️ Information - ስለ GoodayOn መረጃ ለማግኘት`,
     keyboard: Markup.keyboard([
       ["Request for Service Provider", "Information"],
     ]).resize(),
@@ -367,7 +369,7 @@ bot.hears("Request for Service Provider", (ctx) => ctx.scene.enter("phone"));
 
 bot.hears("Information", (ctx) => {
   ctx.replyWithHTML(
-    `🌐 <b>Company Website(ድረ-ገጽ):</b> <a href="https://gooday.io">gooday.io</a>\n\n📞 <b>Call Center(የጥሪ ማዕከል አጭር ቁጥር):</b> 9675\n\n<b>📍Office Address(አድራሻ)</b>:Gotera Pepsi\n\n 📱 <b>Download Our App(የጉዳይ መተግበሪያን ለማወረድ):</b>\n\n<a href="https://play.google.com/store/apps/details?id=ai.gooday.goodayon">Google Play</a> | <a href="https://apps.apple.com/us/app/goodayon/id1521933697">App Store</a>`,
+    `🌐 <b>Company Website(ድረ-ገጽ):</b> <a href="https://gooday.io">gooday.io</a>\n\n📞 <b>Call Center(ኮል-ሴንተር):</b> 9675\n\n<b>📍Office Address(አድራሻ)</b>: Gotera Pepsi\n\n 📱 <b>Download Our App(የጉዳይ መተግበሪያን ለማወረድ):</b>\n\n<a href="https://play.google.com/store/apps/details?id=ai.gooday.goodayon">Google Play</a> | <a href="https://apps.apple.com/us/app/goodayon/id1521933697">App Store</a>`,
     Markup.keyboard([["Back"]]).resize()
   );
 });
